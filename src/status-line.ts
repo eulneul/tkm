@@ -38,12 +38,16 @@ function loadSignatureMoves(): Record<string, SignatureMove> {
 // Lazy-loaded once at module level to avoid re-parsing 9k-line JSON on every status render
 const SIGNATURE_MOVES: Record<string, SignatureMove> = loadSignatureMoves();
 
-// claude-sonnet/opus 200k, haiku 200k — hardcoded to 200k as a safe default.
-// Actual remaining is approximate; PP serves as a relative pressure indicator, not exact count.
-const MAX_CONTEXT = 200000;
-
-function calcPp(maxPp: number, contextTokensUsed: number): number {
-  const ratio = Math.max(0, 1 - contextTokensUsed / MAX_CONTEXT);
+// PP = remaining context window expressed as move PP for ace pokemon.
+// Prefers StdinData.context_window (real-time, per-session) over the historical state value.
+function calcPp(maxPp: number, stdinData: StdinData | null, fallbackTokensUsed: number): number {
+  let ratio: number;
+  if (stdinData?.context_window != null) {
+    ratio = Math.max(0, stdinData.context_window.remaining_percentage / 100);
+  } else {
+    const MAX_CONTEXT = 200000;
+    ratio = Math.max(0, 1 - fallbackTokensUsed / MAX_CONTEXT);
+  }
   return Math.max(0, Math.floor(ratio * maxPp));
 }
 
@@ -482,10 +486,10 @@ function main(): void {
     const baseId = parseInt(toBaseId(p.speciesId), 10);
     const sigMove = SIGNATURE_MOVES[baseId];
     const ppFull = (isAce && sigMove && sigMove.pp > 0)
-      ? ` ${sigMove.move_ko} PP:${calcPp(sigMove.pp, contextTokensUsed)}/${sigMove.pp}`
+      ? ` ${sigMove.move_ko} PP:${calcPp(sigMove.pp, stdinData, contextTokensUsed)}/${sigMove.pp}`
       : '';
     const ppShort = (isAce && sigMove && sigMove.pp > 0)
-      ? ` PP:${calcPp(sigMove.pp, contextTokensUsed)}/${sigMove.pp}`
+      ? ` PP:${calcPp(sigMove.pp, stdinData, contextTokensUsed)}/${sigMove.pp}`
       : '';
     const ppSuffix = tier <= 1 ? ppFull : ppShort;
 
