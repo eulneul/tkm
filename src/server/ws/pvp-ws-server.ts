@@ -425,8 +425,8 @@ export class PvpWsServer {
       seq: snapshot.seq,
       sentAt,
     });
-    this.sessionsByRoomId.set(nextSession.roomId, nextSession);
     transport.send(snapshot);
+    this.sessionsByRoomId.set(nextSession.roomId, nextSession);
   }
 
   private dispatchEvents(
